@@ -1,3 +1,4 @@
+import os
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -236,7 +237,8 @@ async def painel(interaction: discord.Interaction):
     await interaction.channel.send(embed=embed, view=LojaView())
     await interaction.response.send_message("✅ Painel enviado com sucesso!", ephemeral=True)
 
-import os
-
-bot.run(os.getenv("TOKEN"))
-_zg.oZaClf2E5hDSmvDcJo0set1rfNzGzlU8wrLT_4")
+token = os.getenv("TOKEN")
+if token:
+    bot.run(token)
+else:
+    print("Erro: A variável de ambiente TOKEN não foi encontrada!")
