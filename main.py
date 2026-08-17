@@ -1,4 +1,5 @@
 import discord
+import os
 from discord import app_commands
 from discord.ext import commands
 
@@ -236,4 +237,5 @@ async def painel(interaction: discord.Interaction):
     await interaction.channel.send(embed=embed, view=LojaView())
     await interaction.response.send_message("✅ Painel enviado com sucesso!", ephemeral=True)
 
-bot.run("MTQ1OTYwMDk3MDAwMTY3ODM3Ng.GuX_zg.oZaClf2E5hDSmvDcJo0set1rfNzGzlU8wrLT_4")
+bot.run(os.getenv("TOKEN"))
+X_zg.oZaClf2E5hDSmvDcJo0set1rfNzGzlU8wrLT_4")
