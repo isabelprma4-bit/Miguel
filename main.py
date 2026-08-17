@@ -27,7 +27,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             titulo TEXT DEFAULT 'YT PR3M1UM',
             destaque TEXT DEFAULT '⚡ Entrega Automática!',
-            descricao TEXT DEFAULT '• Youtube premium na sua conta\n• Não precisa ativar nada ( so apertar e usar)\n• Oficial do youtube nada pirata\n• Entrega automática\n• garantia apenas com feedback + print',
+            descricao TEXT DEFAULT '• Youtube premium na sua conta\n• Não precisa ativar nada\n• Entrega automática',
             valor TEXT DEFAULT '3,99',
             estoque TEXT DEFAULT '∞',
             thumb_url TEXT DEFAULT '',
@@ -65,34 +65,22 @@ def update_field(field, value):
 # --- BOT CONFIG ---
 intents = discord.Intents.default()
 intents.message_content = True
+intents.voice_states = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # --- EMBED FINAL DA LOJA ---
 def gerar_embed_clean():
     p = get_produto()
-    
-    # Montagem exata da estrutura da foto
     corpo = ""
-    if p[2]:  # Destaque (ex: Entrega Automática)
-        corpo += f"{p[2]}\n\n"
-        
+    if p[2]: corpo += f"{p[2]}\n\n"
     corpo += f"{p[3]}\n\n"
     corpo += f"**Valor à vista**\n```R$ {p[4]}```\n"
     corpo += f"**Restam**\n``` {p[5]} ```"
     
-    embed = discord.Embed(
-        title=p[1],
-        description=corpo,
-        color=0x2b2d31
-    )
-    
+    embed = discord.Embed(title=p[1], description=corpo, color=0x2b2d31)
     if p[6]: embed.set_thumbnail(url=p[6])
     if p[7]: embed.set_image(url=p[7])
-        
-    embed.set_footer(
-        text="AMOLED STORE | Loja Oficial", 
-        icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
-    )
+    embed.set_footer(text="AMOLED STORE | Loja Oficial", icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None)
     return embed
 
 # --- EMBED DO PAINEL DE EDIÇÃO INTERNO ---
@@ -190,7 +178,21 @@ class PainelEditorView(discord.ui.View):
     async def voltar(self, interaction: discord.Interaction, b: discord.ui.Button):
         await interaction.response.edit_message(content="**Painel Geral Amoled:**", embed=None, view=PainelGeralView())
 
-# --- CLIENTE VIEW ---
+# --- AÇÕES DO CARRINHO (DENTRO DO TÓPICO) ---
+class CarrinhoAcoesView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Pagamento Pix", style=discord.ButtonStyle.success, emoji="💵")
+    async def pagar_pix(self, interaction: discord.Interaction, b: discord.ui.Button):
+        await interaction.response.send_message("⚙️ Gerando chave Pix para pagamento...", ephemeral=True)
+
+    @discord.ui.button(label="Cancelar/Fechar", style=discord.ButtonStyle.danger, emoji="❌")
+    async def fechar_carrinho(self, interaction: discord.Interaction, b: discord.ui.Button):
+        await interaction.response.send_message("🔒 Fechando e deletando o carrinho...")
+        await interaction.channel.delete()
+
+# --- CLIENTE VIEW (CRIA O TÓPICO / THREAD PRIVADO) ---
 class PainelClienteView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -209,7 +211,41 @@ class PainelClienteView(discord.ui.View):
         self.add_item(btn_compra)
 
     async def comprar_callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message("🛒 Abrindo seu carrinho de compras...", ephemeral=True)
+        p = get_produto()
+        user = interaction.user
+        channel = interaction.channel
+        
+        thread_name = f"🛒│{user.name}"
+        
+        for thread in channel.threads:
+            if thread.name == thread_name:
+                await interaction.response.send_message(f"❌ Você já possui um carrinho aberto aqui: {thread.mention}", ephemeral=True)
+                return
+
+        thread = await channel.create_thread(
+            name=thread_name,
+            auto_archive_duration=60,
+            type=discord.ChannelType.private_thread if interaction.guild.premium_tier >= 2 else discord.ChannelType.public_thread
+        )
+        
+        await thread.add_user(user)
+        await interaction.response.send_message(f"✅ Seu carrinho foi aberto com sucesso: {thread.mention}", ephemeral=True)
+
+        embed_carrinho = discord.Embed(
+            title=f"🛒 Carrinho de Compras - {p[1]}",
+            description=(
+                f"Olá {user.mention}, seu carrinho foi criado!\n\n"
+                f"**Produto:** {p[1]}\n"
+                f"**Valor Unitário:** R$ {p[4]}\n"
+                f"**Quantidade:** 1x\n"
+                f"**Total:** R$ {p[4]}\n\n"
+                f"Clique no botão abaixo para prosseguir com o pagamento via Pix."
+            ),
+            color=0x2b2d31
+        )
+        embed_carrinho.set_footer(text="Amoled Store | Atendimento")
+
+        await thread.send(content=user.mention, embed=embed_carrinho, view=CarrinhoAcoesView())
 
 # --- PAINEL PRINCIPAL ---
 class PainelGeralView(discord.ui.View):
@@ -225,6 +261,26 @@ class PainelGeralView(discord.ui.View):
         await interaction.channel.send(embed=gerar_embed_clean(), view=PainelClienteView())
         await interaction.response.send_message("✅ Anúncio postado no canal!", ephemeral=True)
 
+# --- NOVOS COMANDOS: /status E /call ---
+
+@bot.tree.command(name="status", description="Altera o status/atividade do bot")
+async def status(interaction: discord.Interaction, texto: str):
+    await bot.change_presence(activity=discord.Game(name=texto))
+    await interaction.response.send_message(f"✅ Status alterado para: **{texto}**", ephemeral=True)
+
+@bot.tree.command(name="call", description="Faz o bot entrar no seu canal de voz")
+async def call(interaction: discord.Interaction):
+    if interaction.user.voice:
+        channel = interaction.user.voice.channel
+        if interaction.guild.voice_client:
+            await interaction.guild.voice_client.move_to(channel)
+        else:
+            await channel.connect()
+        await interaction.response.send_message(f"🔊 Conectado ao canal de voz: **{channel.name}**", ephemeral=True)
+    else:
+        await interaction.response.send_message("❌ Você precisa estar em um canal de voz primeiro!", ephemeral=True)
+
+# --- COMANDO PAINEL ---
 @bot.tree.command(name="painel", description="Abre o painel Amoled")
 async def painel(interaction: discord.Interaction):
     await interaction.response.send_message("**Painel Geral Amoled:**", view=PainelGeralView(), ephemeral=True)
@@ -232,6 +288,6 @@ async def painel(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    print(f"Bot {bot.user} pronto!")
+    print(f"Bot {bot.user} pronto com os comandos /painel, /status e /call!")
 
 bot.run(os.environ.get("TOKEN"))
