@@ -1,5 +1,7 @@
 discord.py
-flask==3.0.2
+flask
 requests>=2.31.0
 pandas
+numpy
+
 numpy
