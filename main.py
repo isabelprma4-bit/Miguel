@@ -236,4 +236,4 @@ async def painel(interaction: discord.Interaction):
     await interaction.channel.send(embed=embed, view=LojaView())
     await interaction.response.send_message("✅ Painel enviado com sucesso!", ephemeral=True)
 
-bot.run('MTQ1OTYwMDk3MDAwMTY3ODM3Ng.GFdYZP.5JPcaTHw8uZ4oOELhDPUgF9mswt0MQ2R8sjU4Q')
+bot.run("MTQ1OTYwMDk3MDAwMTY3ODM3Ng.GuX_zg.oZaClf2E5hDSmvDcJo0set1rfNzGzlU8wrLT_4")
